@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Employee Management System</title>
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <style>
+    body { font-family: Arial, sans-serif; max-width: 800px; margin: 30px auto; padding: 0 16px; color: #222; }
+    h1 { text-align: center; }
+    form { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 20px; }
+    input { padding: 8px; flex: 1; min-width: 140px; }
+    button { padding: 8px 14px; cursor: pointer; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
+    th { background: #f3f3f3; }
+    .error { color: #b00020; margin-bottom: 10px; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useEffect } = React;
+    const API = "/api/employees";
+    const empty = { name: "", email: "", department: "" };
+
+    function App() {
+      const [employees, setEmployees] = useState([]);
+      const [form, setForm] = useState(empty);
+      const [editingId, setEditingId] = useState(null);
+      const [error, setError] = useState("");
+
+      const load = async () => {
+        const res = await fetch(API);
+        setEmployees(await res.json());
+      };
+
+      useEffect(() => { load(); }, []);
+
+      const handleChange = (e) => setForm({ ...form, [e.target.name]: e.target.value });
+
+      const handleSubmit = async (e) => {
+        e.preventDefault();
+        setError("");
+        const res = await fetch(editingId ? `${API}/${editingId}` : API, {
+          method: editingId ? "PUT" : "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(form),
+        });
+        if (!res.ok) {
+          setError("Please fill all fields with a valid email.");
+          return;
+        }
+        setForm(empty);
+        setEditingId(null);
+        load();
+      };
+
+      const handleEdit = (emp) => {
+        setEditingId(emp.id);
+        setForm({ name: emp.name, email: emp.email, department: emp.department });
+      };
+
+      const handleDelete = async (id) => {
+        await fetch(`${API}/${id}`, { method: "DELETE" });
+        load();
+      };
+
+      return (
+        <div>
+          <h1>Employee Management System</h1>
+          {error && <div className="error">{error}</div>}
+          <form onSubmit={handleSubmit}>
+            <input name="name" placeholder="Name" value={form.name} onChange={handleChange} />
+            <input name="email" placeholder="Email" value={form.email} onChange={handleChange} />
+            <input name="department" placeholder="Department" value={form.department} onChange={handleChange} />
+            <button type="submit">{editingId ? "Update" : "Add"}</button>
+            {editingId && (
+              <button type="button" onClick={() => { setEditingId(null); setForm(empty); }}>Cancel</button>
+            )}
+          </form>
+
+          <table>
+            <thead>
+              <tr><th>ID</th><th>Name</th><th>Email</th><th>Department</th><th>Actions</th></tr>
+            </thead>
+            <tbody>
+              {employees.map((emp) => (
+                <tr key={emp.id}>
+                  <td>{emp.id}</td>
+                  <td>{emp.name}</td>
+                  <td>{emp.email}</td>
+                  <td>{emp.department}</td>
+                  <td>
+                    <button onClick={() => handleEdit(emp)}>Edit</button>{" "}
+                    <button onClick={() => handleDelete(emp.id)}>Delete</button>
+                  </td>
+                </tr>
+              ))}
+              {employees.length === 0 && (
+                <tr><td colSpan="5">No employees yet.</td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+  </script>
+</body>
+</html>
